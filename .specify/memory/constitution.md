@@ -1,50 +1,210 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: 1.0.0 → 1.1.0 (minor update)
+- Modified principles: N/A
+- Added sections:
+  * ドキュメント言語 (Documentation Language) - 日本語を標準言語として明記
+- Modified sections:
+  * アーキテクチャ要件 → アーキテクチャ制約 (Architecture Constraints) - 具体的な技術名を削除し、原則的な制約のみに変更
+- Removed sections: N/A
+- Templates status:
+  ✅ plan-template.md: Compatible (Constitution Check section will validate principles)
+  ✅ spec-template.md: Compatible (Requirements align with principles, will be generated in Japanese)
+  ✅ tasks-template.md: Compatible (Task organization supports modular architecture, will be generated in Japanese)
+- Follow-up TODOs: None
+-->
 
-## Core Principles
+# RAG システム憲法
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+## コア原則
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### I. モジュール型アーキテクチャ
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+システムは明確に分離された責任を持つ独立したコンポーネントで構成されなければならない(MUST):
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+- **ドキュメント取り込み層**: ドキュメントのアップロード、処理、チャンク化を担当
+- **ベクトル検索層**: 埋め込み生成とセマンティック検索を担当
+- **生成層**: Amazon Bedrockを使用したLLM応答生成を担当
+- **API層**: API Gateway + Lambdaを使用したRESTfulエンドポイント
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+各コンポーネントは独立してテスト、デプロイ、スケール可能でなければならない(MUST)。
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**根拠**: モジュール型設計により、個別コンポーネントの開発、保守、スケーリングが容易になり、システムの柔軟性と保守性が向上する。
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### II. サーバーレスファースト
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+すべてのコンポーネントはサーバーレスアーキテクチャを優先しなければならない(MUST):
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- **Lambda関数**: ビジネスロジックとデータ処理
+- **API Gateway**: HTTPリクエストルーティングと認証
+- **S3**: ドキュメントストレージ
+- **DynamoDB または Aurora Serverless**: メタデータとベクトルインデックス
+- **Amazon Bedrock**: LLM推論
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+インフラストラクチャ管理を最小化し、自動スケーリングを活用する。
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**根拠**: サーバーレスアーキテクチャにより、運用オーバーヘッドが削減され、使用量に基づく課金が実現し、自動スケーリングが提供される。
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+### III. コスト効率とパフォーマンス
+
+システムはコストとパフォーマンスのバランスを取らなければならない(MUST):
+
+- **Lambda最適化**: メモリ配分とコールドスタート時間の最適化
+- **ベクトル検索効率**: 適切なインデックスとキャッシング戦略
+- **Bedrock呼び出し最適化**: プロンプトサイズの最小化と応答キャッシング
+- **段階的デグレーデーション**: 高トラフィック時の優雅な性能低下
+
+パフォーマンス目標: API応答時間 < 3秒(p95)、LLM応答時間 < 10秒(p95)
+
+**根拠**: RAGシステムはLLM呼び出しが高コストになりうるため、効率的な設計が長期的な運用可能性に不可欠である。
+
+### IV. 観測可能性とデバッグ性
+
+システムのすべての層で構造化ログとトレーシングが必要である(MUST):
+
+- **CloudWatch Logs**: すべてのLambda関数からの構造化ログ(JSON形式)
+- **X-Ray トレーシング**: リクエストフロー全体の分散トレーシング
+- **メトリクス**: レイテンシ、エラー率、トークン使用量、コスト追跡
+- **アラート**: エラー閾値、レイテンシスパイク、コスト異常
+
+ログには:
+- リクエストID(追跡用)
+- ユーザーコンテキスト
+- プロンプトとレスポンスのメタデータ(完全なコンテンツは除く)
+- エラーとスタックトレース
+- パフォーマンスメトリクス(実行時間、トークン数)
+
+**根拠**: RAGシステムは複数のコンポーネント(検索、生成、データ処理)を含み、デバッグには完全な可視性が必要である。
+
+### V. テストとバリデーション
+
+機能デリバリー前に包括的なテストが必要である(MUST):
+
+- **ユニットテスト**: 個別の関数とモジュール
+- **統合テスト**: コンポーネント間の相互作用(Lambda → Bedrock、Lambda → DynamoDB)
+- **コントラクトテスト**: APIエンドポイントとスキーマ検証
+- **E2Eテスト**: 完全なユーザージャーニー(ドキュメントアップロード → クエリ → 応答)
+- **負荷テスト**: 同時実行とスケーリング動作
+
+テストデータセット:
+- サンプルドキュメント(様々なフォーマット: PDF、TXT、DOCX)
+- 予想されるクエリと回答のペア
+- エッジケース(大きなドキュメント、特殊文字、多言語コンテンツ)
+
+**根拠**: RAGシステムは非決定的なLLM出力を持つため、回帰を防ぐために厳格なテストが必要である。
+
+## アーキテクチャ制約
+
+### クラウドプラットフォーム
+
+- **AWSサーバーレスアーキテクチャを使用すること**(MUST)
+- マネージドサービスを優先し、インフラストラクチャ管理を最小化すること
+- Infrastructure as Code (IaC) によるリソース管理を行うこと
+
+### データストレージ
+
+- **ドキュメントストレージ**: オブジェクトストレージを使用すること
+- **ベクトル検索**: セマンティック検索機能を持つストレージまたはマネージドサービスを使用すること
+- **メタデータ**: NoSQLまたはリレーショナルデータベースでメタデータを管理すること
+
+### API設計
+
+RESTful APIで明確なコントラクトを定義すること:
+
+```
+POST /documents          # ドキュメントアップロード
+GET  /documents/{id}     # ドキュメント取得
+POST /query              # RAGクエリ実行
+GET  /query/{id}         # クエリ結果取得
+```
+
+**リクエスト/レスポンス形式**:
+- JSON構造化データ
+- エラーは標準HTTPステータスコード
+- ページネーションサポート(リスト操作)
+- レート制限ヘッダー
+
+### データフローパターン
+
+以下のデータフローパターンに従うこと:
+
+1. **取り込みフロー**: クライアント → API層 → 処理層 → ストレージ → チャンク化 → ベクトル化 → ベクトルDB
+2. **クエリフロー**: クライアント → API層 → 埋め込み生成 → ベクトル検索 → コンテキスト構築 → LLM呼び出し → レスポンス生成 → クライアント
+
+**注**: 具体的な技術選択(LLMプロバイダー、ベクトルDB製品、UIフレームワークなど)は、各機能の`plan.md`で定義すること。
+
+## セキュリティとコンプライアンス
+
+### 認証と認可
+
+- **API認証**: API Gateway認証(API Key、Cognito、IAM)
+- **Lambda実行ロール**: 最小権限の原則(IAMロール)
+- **データアクセス**: ユーザーレベルのデータ分離
+
+### データセキュリティ
+
+- **転送中の暗号化**: HTTPS(API Gateway)、TLS(Bedrock)
+- **保管中の暗号化**: S3(SSE-S3またはSSE-KMS)、DynamoDB暗号化
+- **機密データ**: PII除去またはマスキング(ログから)
+- **データ保持**: ドキュメント保持ポリシーとGDPRコンプライアンス
+
+### コスト管理
+
+- **予算アラート**: 月次コスト閾値
+- **リソースクォータ**: ユーザーあたりのドキュメント制限、API レート制限
+- **最適化**: プロンプトキャッシング、バッチ処理、効率的なリソース利用
+
+## ドキュメント言語
+
+### 標準言語
+
+プロジェクトのすべてのドキュメントは**日本語**で記述しなければならない(MUST):
+
+- **仕様書**: `spec.md` - ユーザーストーリー、要件、成功基準
+- **実装計画**: `plan.md` - 技術コンテキスト、アーキテクチャ決定、構成チェック
+- **タスクリスト**: `tasks.md` - 実装タスク、依存関係、チェックポイント
+- **クイックスタート**: `quickstart.md` - セットアップ手順、使用方法
+- **チェックリスト**: `checklist.md` - 品質保証、デプロイメントチェック
+- **コミットメッセージ**: 日本語または英語(プロジェクトの慣習に従う)
+
+**例外**:
+- コード内コメント: 英語も許容される(ただし日本語を推奨)
+- API仕様: エンドポイント名、パラメータ名は英語
+- 技術用語: 原語のまま使用可能(例: Lambda、Bedrock、embedding)
+
+**根拠**: チームのコミュニケーション効率を最大化し、ドキュメントの一貫性を保つため。日本語を標準とすることで、要件理解の精度向上と議論の円滑化を実現する。
+
+## ガバナンス
+
+### 憲法の優先順位
+
+この憲法はすべての開発プラクティスとアーキテクチャ決定に優先する。
+
+### 修正プロセス
+
+憲法の修正には以下が必要である:
+1. **文書化**: 変更理由と影響分析
+2. **承認**: プロジェクトステークホルダーからのレビューと承認
+3. **移行計画**: 既存コードへの影響を伴う変更のロールアウト戦略
+4. **バージョン管理**: セマンティックバージョニング(下記参照)
+
+### バージョニングポリシー
+
+**MAJOR.MINOR.PATCH**形式:
+- **MAJOR**: 後方互換性のないガバナンスまたは原則の削除/再定義
+- **MINOR**: 新しい原則/セクションの追加または実質的なガイダンス拡張
+- **PATCH**: 明確化、文言修正、タイポ修正、非セマンティックな改良
+
+### コンプライアンスレビュー
+
+- すべてのプルリクエストとコードレビューはこの憲法への準拠を検証しなければならない(MUST)
+- 複雑性(モジュール追加、アーキテクチャ変更)は正当化が必要
+- 四半期レビューで原則の有効性を評価
+
+### 開発ガイダンス
+
+日常的な開発ガイダンスについては、`specs/*/plan.md`および`specs/*/quickstart.md`を参照してください。
+
+---
+
+**Version**: 1.1.0 | **Ratified**: 2025-11-27 | **Last Amended**: 2025-11-27
