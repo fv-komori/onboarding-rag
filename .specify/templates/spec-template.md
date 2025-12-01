@@ -1,115 +1,113 @@
-# Feature Specification: [FEATURE NAME]
+# 機能仕様: [機能名]
 
-**Feature Branch**: `[###-feature-name]`  
-**Created**: [DATE]  
-**Status**: Draft  
-**Input**: User description: "$ARGUMENTS"
+**機能ブランチ**: `[###-feature-name]`
+**作成日**: [DATE]
+**ステータス**: ドラフト
+**入力**: ユーザー説明: "$ARGUMENTS"
 
-## User Scenarios & Testing *(mandatory)*
+## ユーザーシナリオとテスト *(必須)*
 
 <!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-  
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
+  重要: ユーザーストーリーは重要度順に並べること。
+  各ストーリーは独立してテスト可能である必要がある。つまり、1つだけ実装しても
+  価値を提供できる実用最小限のプロダクト(MVP)になっていること。
+
+  優先度(P1, P2, P3...)を各ストーリーに割り当てる。P1が最重要。
+  各ストーリーは以下のように独立した機能単位として扱う:
+  - 独立して開発できる
+  - 独立してテストできる
+  - 独立してデプロイできる
+  - 独立してユーザーにデモできる
 -->
 
-### User Story 1 - [Brief Title] (Priority: P1)
+### ユーザーストーリー1 - [簡潔なタイトル] (優先度: P1)
 
-[Describe this user journey in plain language]
+[このユーザージャーニーを平易な言葉で説明]
 
-**Why this priority**: [Explain the value and why it has this priority level]
+**なぜこの優先度か**: [この優先度にした理由と提供する価値を説明]
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+**独立したテスト方法**: [独立してテストする方法 - 例: "[具体的な操作]で完全にテストでき、[具体的な価値]を提供する"]
 
-**Acceptance Scenarios**:
+**受け入れ条件**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **前提** [初期状態]、**操作** [ユーザーの操作]、**期待** [期待される結果]
+2. **前提** [初期状態]、**操作** [ユーザーの操作]、**期待** [期待される結果]
 
 ---
 
-### User Story 2 - [Brief Title] (Priority: P2)
+### ユーザーストーリー2 - [簡潔なタイトル] (優先度: P2)
 
-[Describe this user journey in plain language]
+[このユーザージャーニーを平易な言葉で説明]
 
-**Why this priority**: [Explain the value and why it has this priority level]
+**なぜこの優先度か**: [この優先度にした理由と提供する価値を説明]
 
-**Independent Test**: [Describe how this can be tested independently]
+**独立したテスト方法**: [独立してテストする方法を説明]
 
-**Acceptance Scenarios**:
+**受け入れ条件**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 3 - [Brief Title] (Priority: P3)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
-
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **前提** [初期状態]、**操作** [ユーザーの操作]、**期待** [期待される結果]
 
 ---
 
-[Add more user stories as needed, each with an assigned priority]
+### ユーザーストーリー3 - [簡潔なタイトル] (優先度: P3)
 
-### Edge Cases
+[このユーザージャーニーを平易な言葉で説明]
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
+**なぜこの優先度か**: [この優先度にした理由と提供する価値を説明]
 
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+**独立したテスト方法**: [独立してテストする方法を説明]
 
-## Requirements *(mandatory)*
+**受け入れ条件**:
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
+1. **前提** [初期状態]、**操作** [ユーザーの操作]、**期待** [期待される結果]
 
-### Functional Requirements
+---
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+[必要に応じてストーリーを追加。各ストーリーに優先度を設定すること]
 
-*Example of marking unclear requirements:*
-
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
-
-### Key Entities *(include if feature involves data)*
-
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
-
-## Success Criteria *(mandatory)*
+### エッジケース
 
 <!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
+  要対応: プレースホルダーを実際のエッジケースに置き換えること
 -->
 
-### Measurable Outcomes
+- [境界条件]の場合、どうなるか?
+- [エラーシナリオ]の際、システムはどう対処するか?
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+## 要件 *(必須)*
+
+<!--
+  要対応: プレースホルダーを実際の機能要件に置き換えること
+-->
+
+### 機能要件
+
+- **FR-001**: [具体的な機能、例: "ユーザーがアカウントを作成できる"]こと
+- **FR-002**: [具体的な機能、例: "メールアドレスを検証する"]こと
+- **FR-003**: ユーザーが[主要な操作、例: "パスワードをリセットできる"]こと
+- **FR-004**: [データ要件、例: "ユーザー設定を永続化する"]こと
+- **FR-005**: [動作要件、例: "全セキュリティイベントをログに記録する"]こと
+
+*不明点のマーク例:*
+
+- **FR-006**: [要明確化: 認証方式が未指定 - メール/パスワード、SSO、OAuth?]でユーザー認証すること
+- **FR-007**: [要明確化: 保存期間が未指定]の間、ユーザーデータを保持すること
+
+### 主要なデータ *(機能がデータを扱う場合に記載)*
+
+- **[データ1]**: [何を表すか、実装方法によらない主要な属性]
+- **[データ2]**: [何を表すか、他のデータとの関係]
+
+## 成功基準 *(必須)*
+
+<!--
+  要対応: 測定可能な成功基準を定義すること
+  技術に依存せず、測定可能であること
+-->
+
+### 測定可能な成果
+
+- **SC-001**: [測定可能な指標、例: "ユーザーが2分以内にアカウント作成を完了できる"]
+- **SC-002**: [測定可能な指標、例: "1000人の同時ユーザーでも性能劣化しない"]
+- **SC-003**: [ユーザー満足度、例: "90%のユーザーが初回で主要タスクを完了できる"]
+- **SC-004**: [ビジネス指標、例: "[X]に関するサポート問い合わせが50%削減される"]
