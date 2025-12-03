@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: 社内ドキュメントQ&A API
+  description: |
+    RAGベース社内ドキュメントQ&Aシステムのバックエンド API仕様。
+
+    **認証**: すべてのエンドポイントはAmazon Cognito認証が必要。
+    API GatewayのCognito Authorizerを使用してIDトークンを検証。
+  version: 1.0.0
+  contact:
+    name: Development Team
+servers:
+  - url: https://api.{env}.example.com/v1
+    description: API Gateway エンドポイント
+    variables:
+      env:
+        default: dev
+        enum:
+          - dev
+          - staging
+          - prod
+
+security:
+  - CognitoAuthorizer: []
+
+paths:
+  /query:
+    post:
+      summary: RAGクエリ実行
+      description: |
+        ユーザーの質問をもとにKnowledge Baseを検索し、LLMが回答を生成する。
+
+        **処理フロー**:
+        1. 質問テキストをBedrock Embeddingsでベクトル化
+        2. Knowledge Baseで類似ドキュメントを検索(メタデータフィルタ適用)
+        3. 検索結果をコンテキストとしてBedrock (Claude)で回答生成
+        4. 回答と検索結果をDynamoDBに保存
+      operationId: executeQuery
+      tags:
+        - Query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            examples:
+              全社共通質問:
+                summary: 全社共通ドキュメントから検索
+                value:
+                  query_text: "経費精算の方法は?"
+                  selected_projects: []
+              案件固有質問:
+                summary: 特定案件のドキュメントから検索
+                value:
+                  query_text: "デプロイ手順は?"
+                  selected_projects: ["project-001"]
+      responses:
+        '200':
+          description: クエリ成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              examples:
+                成功例:
+                  value:
+                    query_id: "550e8400-e29b-41d4-a716-446655440000"
+                    answer_id: "660e8400-e29b-41d4-a716-446655440001"
+                    answer_text: "経費精算は以下の手順で行います:\n1. 経費精算システムにログイン\n2. 「新規申請」ボタンをクリック\n3. 必要事項を入力し、領収書を添付\n4. 上長承認後、経理部に自動送信されます。"
+                    sources:
+                      - document_id: "770e8400-e29b-41d4-a716-446655440002"
+                        file_name: "経費精算ルール.pdf"
+                        s3_key: "common/finance/経費精算ルール.pdf"
+                        page_number: 3
+                        chunk_text: "経費精算は経費精算システムから申請してください。上長承認が必要です。"
+                        relevance_score: 0.92
+                    generation_time_ms: 2800
+                    kb_search_time_ms: 450
+        '400':
+          description: リクエストエラー(バリデーション失敗)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                バリデーションエラー:
+                  value:
+                    error_code: "VALIDATION_ERROR"
+                    message: "query_text must be between 1 and 2000 characters"
+        '401':
+          description: 認証エラー(Cognitoトークン無効)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 認可エラー(アクセス権限なし)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                案件アクセス権なし:
+                  value:
+                    error_code: "FORBIDDEN"
+                    message: "User does not have access to project: project-001"
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents:
+    post:
+      summary: ドキュメントアップロード
+      description: |
+        S3への署名付きURL(Presigned URL)を取得し、ドキュメントをアップロードする。
+
+        **処理フロー**:
+        1. API経由でPresigned URLを取得
+        2. クライアントが直接S3にPUTリクエストでアップロード
+        3. S3 Event → Lambda → Knowledge Base同期トリガー
+      operationId: createDocument
+      tags:
+        - Document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+            examples:
+              全社共通ドキュメント:
+                value:
+                  file_name: "就業規則_v2.pdf"
+                  file_type: "pdf"
+                  category: "common"
+                  department: "hr"
+              案件固有ドキュメント:
+                value:
+                  file_name: "マニュアル.pdf"
+                  file_type: "pdf"
+                  category: "project"
+                  project_id: "project-001"
+      responses:
+        '201':
+          description: Presigned URL生成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateDocumentResponse'
+              examples:
+                成功例:
+                  value:
+                    document_id: "880e8400-e29b-41d4-a716-446655440003"
+                    presigned_url: "https://bucket.s3.amazonaws.com/common/hr/就業規則_v2.pdf?X-Amz-Signature=..."
+                    s3_key: "common/hr/就業規則_v2.pdf"
+                    expires_in: 300
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: ドキュメント一覧取得
+      description: |
+        アップロード済みドキュメントの一覧を取得。
+        カテゴリや案件IDでフィルタリング可能。
+      operationId: listDocuments
+      tags:
+        - Document
+      parameters:
+        - name: category
+          in: query
+          description: カテゴリフィルタ
+          schema:
+            type: string
+            enum: [common, project]
+        - name: project_id
+          in: query
+          description: 案件IDフィルタ
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: 取得件数(デフォルト20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: next_token
+          in: query
+          description: ページネーショントークン
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDocumentsResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /documents/{document_id}:
+    get:
+      summary: ドキュメント詳細取得
+      description: 特定ドキュメントのメタデータを取得
+      operationId: getDocument
+      tags:
+        - Document
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          description: ドキュメントID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: ドキュメントが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /feedback:
+    post:
+      summary: フィードバック送信
+      description: |
+        回答に対するフィードバック(役に立った/立たなかった)を送信。
+        オプションでコメントも追加可能。
+      operationId: submitFeedback
+      tags:
+        - Feedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+            examples:
+              役に立った:
+                value:
+                  query_id: "550e8400-e29b-41d4-a716-446655440000"
+                  answer_id: "660e8400-e29b-41d4-a716-446655440001"
+                  rating: "helpful"
+              役に立たなかった(コメント付き):
+                value:
+                  query_id: "550e8400-e29b-41d4-a716-446655440000"
+                  answer_id: "660e8400-e29b-41d4-a716-446655440001"
+                  rating: "not_helpful"
+                  comment: "情報が古いようです。最新版のドキュメントを追加してください。"
+      responses:
+        '201':
+          description: フィードバック送信成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '400':
+          description: リクエストエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /query-history:
+    get:
+      summary: 質問履歴取得
+      description: |
+        ログインユーザーの質問履歴を取得。
+        回答とフィードバックも含む。
+      operationId: getQueryHistory
+      tags:
+        - Query
+      parameters:
+        - name: limit
+          in: query
+          description: 取得件数(デフォルト20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: next_token
+          in: query
+          description: ページネーショントークン
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryHistoryResponse'
+
+components:
+  securitySchemes:
+    CognitoAuthorizer:
+      type: apiKey
+      name: Authorization
+      in: header
+      description: Cognito IDトークン (Bearer token)
+      x-amazon-apigateway-authtype: cognito_user_pools
+
+  schemas:
+    QueryRequest:
+      type: object
+      required:
+        - query_text
+      properties:
+        query_text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: 質問文
+          example: "経費精算の方法は?"
+        selected_projects:
+          type: array
+          items:
+            type: string
+          description: 検索対象案件IDリスト(空の場合は全社共通のみ)
+          example: ["project-001"]
+
+    QueryResponse:
+      type: object
+      required:
+        - query_id
+        - answer_id
+        - answer_text
+        - sources
+        - generation_time_ms
+        - kb_search_time_ms
+      properties:
+        query_id:
+          type: string
+          format: uuid
+          description: 質問ID
+        answer_id:
+          type: string
+          format: uuid
+          description: 回答ID
+        answer_text:
+          type: string
+          description: 回答テキスト
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+          minItems: 1
+          maxItems: 10
+          description: 参照元ドキュメント
+        generation_time_ms:
+          type: integer
+          description: 回答生成時間(ミリ秒)
+          example: 2800
+        kb_search_time_ms:
+          type: integer
+          description: Knowledge Base検索時間(ミリ秒)
+          example: 450
+
+    Source:
+      type: object
+      required:
+        - document_id
+        - file_name
+        - s3_key
+        - chunk_text
+        - relevance_score
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: ドキュメントID
+        file_name:
+          type: string
+          description: ファイル名
+          example: "経費精算ルール.pdf"
+        s3_key:
+          type: string
+          description: S3オブジェクトキー
+          example: "common/finance/経費精算ルール.pdf"
+        page_number:
+          type: integer
+          nullable: true
+          description: ページ番号(PDFの場合)
+          example: 3
+        chunk_text:
+          type: string
+          maxLength: 1000
+          description: 抽出されたチャンク(引用文)
+        relevance_score:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: 関連度スコア
+          example: 0.92
+
+    CreateDocumentRequest:
+      type: object
+      required:
+        - file_name
+        - file_type
+        - category
+      properties:
+        file_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: ファイル名
+          example: "就業規則_v2.pdf"
+        file_type:
+          type: string
+          enum: [pdf, docx, txt, md]
+          description: ファイル形式
+        category:
+          type: string
+          enum: [common, project]
+          description: カテゴリ
+        department:
+          type: string
+          nullable: true
+          description: 部署(categoryがcommonの場合必須)
+          example: "hr"
+        project_id:
+          type: string
+          nullable: true
+          description: 案件ID(categoryがprojectの場合必須)
+          example: "project-001"
+
+    CreateDocumentResponse:
+      type: object
+      required:
+        - document_id
+        - presigned_url
+        - s3_key
+        - expires_in
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: ドキュメントID
+        presigned_url:
+          type: string
+          format: uri
+          description: S3 Presigned URL
+        s3_key:
+          type: string
+          description: S3オブジェクトキー
+        expires_in:
+          type: integer
+          description: URL有効期限(秒)
+          example: 300
+
+    Document:
+      type: object
+      required:
+        - document_id
+        - s3_key
+        - s3_bucket
+        - file_name
+        - file_type
+        - file_size
+        - category
+        - uploaded_at
+        - uploaded_by
+        - kb_sync_status
+      properties:
+        document_id:
+          type: string
+          format: uuid
+        s3_key:
+          type: string
+        s3_bucket:
+          type: string
+        file_name:
+          type: string
+        file_type:
+          type: string
+          enum: [pdf, docx, txt, md]
+        file_size:
+          type: integer
+          description: ファイルサイズ(バイト)
+        category:
+          type: string
+          enum: [common, project]
+        department:
+          type: string
+          nullable: true
+        project_id:
+          type: string
+          nullable: true
+        uploaded_at:
+          type: string
+          format: date-time
+        uploaded_by:
+          type: string
+          description: Cognito User ID
+        kb_sync_status:
+          type: string
+          enum: [pending, syncing, completed, failed]
+        kb_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        chunk_count:
+          type: integer
+          nullable: true
+
+    ListDocumentsResponse:
+      type: object
+      required:
+        - documents
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        next_token:
+          type: string
+          nullable: true
+          description: 次ページのトークン
+
+    FeedbackRequest:
+      type: object
+      required:
+        - query_id
+        - answer_id
+        - rating
+      properties:
+        query_id:
+          type: string
+          format: uuid
+        answer_id:
+          type: string
+          format: uuid
+        rating:
+          type: string
+          enum: [helpful, not_helpful]
+        comment:
+          type: string
+          maxLength: 1000
+          nullable: true
+
+    FeedbackResponse:
+      type: object
+      required:
+        - feedback_id
+        - created_at
+      properties:
+        feedback_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    QueryHistoryResponse:
+      type: object
+      required:
+        - queries
+      properties:
+        queries:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryHistoryItem'
+        next_token:
+          type: string
+          nullable: true
+
+    QueryHistoryItem:
+      type: object
+      required:
+        - query_id
+        - query_text
+        - created_at
+      properties:
+        query_id:
+          type: string
+          format: uuid
+        query_text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        answer:
+          $ref: '#/components/schemas/QueryResponse'
+          nullable: true
+        feedback:
+          type: object
+          nullable: true
+          properties:
+            rating:
+              type: string
+              enum: [helpful, not_helpful]
+            comment:
+              type: string
+              nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+          description: エラーコード
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: エラーメッセージ
+          example: "Invalid request parameters"
+        details:
+          type: object
+          nullable: true
+          description: 詳細情報(バリデーションエラーなど)
